@@ -1,0 +1,128 @@
+name: Build KIWO App
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        working-directory: ./mobile
+        run: flutter pub get
+
+      - name: Analyze code
+        working-directory: ./mobile
+        run: flutter analyze
+
+      - name: Build APK
+        working-directory: ./mobile
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiwo-android-apk
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        working-directory: ./mobile
+        run: flutter pub get
+
+      - name: Install CocoaPods
+        working-directory: ./mobile
+        run: |
+          cd ios
+          pod install
+          cd ..
+
+      - name: Build iOS (No Codesign)
+        working-directory: ./mobile
+        run: flutter build ios --release --no-codesign
+
+      - name: Upload iOS Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiwo-ios-build
+          path: mobile/build/ios/iphoneos/Runner.app
+          retention-days: 30
+
+  build-ios-testflight:
+    runs-on: macos-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        working-directory: ./mobile
+        run: flutter pub get
+
+      - name: Install CocoaPods
+        working-directory: ./mobile
+        run: |
+          cd ios
+          pod install
+          cd ..
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable'
+
+      - name: Build and Archive iOS
+        working-directory: ./mobile
+        run: |
+          flutter build ios --release
+          cd ios
+          xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release archive -archivePath build/Runner.xcarchive
+          xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build/export
+          cd ..
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiwo-ios-ipa
+          path: mobile/ios/build/export/*.ipa
+          retention-days: 30
