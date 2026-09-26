@@ -1,6 +1,6 @@
 class AppConstants {
   // API Configuration
-  static const String baseUrl = 'https://odev-asistani-backend.onrender.com/api';
+  static const String baseUrl = 'http://192.168.1.107:5000/api';
   
   // Storage Keys
   static const String tokenKey = 'auth_token';
