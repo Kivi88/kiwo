@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: odev-asistani-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: odev-asisti-db
+          property: connectionString
+databases:
+  - name: odev-asisti-db
+    databaseName: odev_asisti
+    user: odev_asisti_user
+    plan: free
